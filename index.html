@@ -203,6 +203,7 @@ function publish(){
   alert("Listing published. Everyone can now see it!")
 }
 
+// --- RENDER LISTINGS (BUY BEFORE DOWNLOAD) ---
 function renderListings(){
   let container=document.getElementById("listings")
   container.innerHTML=""
@@ -210,10 +211,12 @@ function renderListings(){
   listings.forEach((l,i)=>{
     let priceText=l.price==0?"FREE":l.price+" COIN'S"
     let button=""
-    if(l.price==0 || userObj.purchased.includes(i)){
+    if(l.price==0){
+      button=`<a href="${l.url}" target="_blank"><button>Download</button></a>`
+    } else if(userObj.purchased.includes(i)){
       button=`<a href="${l.url}" target="_blank"><button>Download</button></a>`
     } else {
-      button=`<button onclick="buy(${i})">Buy</button>`
+      button=`<button onclick="buy(${i})">Buy for ${l.price} COIN'S</button>`
     }
     let card=document.createElement("div")
     card.className="card"
@@ -226,6 +229,10 @@ function renderListings(){
 function buy(i){
   let item=listings[i]
   let userObj=users.find(u=>u.user===currentUser)
+  if(userObj.purchased.includes(i)){
+    alert("You already bought this item!")
+    return
+  }
   if(balance>=item.price){
     balance-=item.price
     userObj.balance=balance
@@ -253,7 +260,7 @@ function redeem(){
   } else alert("Invalid key")
 }
 
-// --- ADMIN ---
+// --- ADMIN PANEL ---
 function renderAdmin(){
   if(!isAdmin) return
   let panel=document.getElementById("adminPanel")
