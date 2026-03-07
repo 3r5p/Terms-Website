@@ -109,6 +109,7 @@ td{background:#1f2433; text-align:center;}
 // --- DATA ---
 let users = JSON.parse(localStorage.getItem("users") || "[]")
 let listings = JSON.parse(localStorage.getItem("listings") || "[]")
+let keys = JSON.parse(localStorage.getItem("keys") || "[]")
 let currentUser = localStorage.getItem("currentUser") || null
 let balance = 0
 let isAdmin = false
@@ -127,7 +128,7 @@ function signup(){
   let pass=document.getElementById("signupPass").value
   if(!user||!pass){alert("Enter username and password");return}
   if(users.find(u=>u.user===user)){alert("Username exists");return}
-  users.push({user, pass, balance:10, lastLogin:null}) // Start with 10 COIN'S
+  users.push({user, pass, balance:10, lastLogin:null})
   localStorage.setItem("users",JSON.stringify(users))
   alert("Account created with 10 COIN'S!")
 }
@@ -238,8 +239,8 @@ function renderListings(){
   listings.forEach((l,i)=>{
     let priceText=l.price==0 ? "FREE" : l.price+" COIN'S"
     let button=l.price==0
-    ? `<a href="${l.url}" target="_blank"><button>Download</button></a>`
-    : `<button onclick="buy(${i})">Buy</button>`
+      ? `<a href="${l.url}" target="_blank"><button>Download</button></a>`
+      : `<button onclick="buy(${i})">Buy</button>`
     let card=document.createElement("div")
     card.className="card"
     card.innerHTML=`<h3>${l.title}</h3><p>${l.desc}</p><p>Price: ${priceText}</p>${button}`
@@ -251,10 +252,10 @@ function renderListings(){
 function buy(i){
   let item=listings[i]
   if(balance>=item.price){
-    balance-=item.price
+    balance -= item.price
     updateBalanceUI()
-    let userObj=users.find(u=>u.user===currentUser)
-    userObj.balance=balance
+    let userObj = users.find(u=>u.user===currentUser)
+    userObj.balance = balance
     localStorage.setItem("users",JSON.stringify(users))
     window.open(item.url)
   } else {alert("Not enough COIN'S")}
@@ -262,14 +263,18 @@ function buy(i){
 
 // --- REDEEM ---
 function redeem(){
-  let key=document.getElementById("key").value
-  if(key==="FREE100"){
-    balance+=100
+  let keyInput=document.getElementById("key").value.trim()
+  let index = keys.findIndex(k=>k.code===keyInput)
+  if(index!==-1){
+    balance += keys[index].value
     let userObj=users.find(u=>u.user===currentUser)
-    userObj.balance=balance
+    userObj.balance = balance
     localStorage.setItem("users",JSON.stringify(users))
     updateBalanceUI()
-    alert("Redeemed 100 COIN'S")
+    alert("Redeemed "+keys[index].value+" COIN'S!")
+    keys.splice(index,1)
+    localStorage.setItem("keys",JSON.stringify(keys))
+    renderKeys()
   } else {alert("Invalid key")}
 }
 
@@ -277,7 +282,7 @@ function redeem(){
 function send(){
   let msg=document.getElementById("message").value
   let box=document.getElementById("chatbox")
-  box.innerHTML+="<p>"+currentUser+": "+msg+"</p>"
+  box.innerHTML += "<p>"+currentUser+": "+msg+"</p>"
 }
 
 // --- ADMIN ---
@@ -289,38 +294,71 @@ function clearListings(){
   alert("All listings deleted")
 }
 
+// --- ADMIN PANEL ---
 function renderAdmin(){
   if(!isAdmin) return
-  let panel=document.getElementById("adminPanel")
-  panel.innerHTML="<h3>Users & Balances</h3>"
-  let table="<table><tr><th>Username</th><th>Balance</th><th>Add COIN'S</th></tr>"
+
+  let panel = document.getElementById("adminPanel")
+  panel.innerHTML = "<h3>Users & Balances</h3>"
+  let table = "<table><tr><th>Username</th><th>Balance</th><th>Add COIN'S</th></tr>"
   users.forEach((u,i)=>{
-    table+=`<tr>
-    <td>${u.user}</td><td id="bal${i}">${u.balance}</td>
-    <td><input id="wd${i}" type="number" placeholder="Amount">
-    <button onclick="giveWD(${i})">Add</button></td>
+    table += `<tr>
+      <td>${u.user}</td><td id="bal${i}">${u.balance}</td>
+      <td><input id="wd${i}" type="number" placeholder="Amount">
+      <button onclick="giveWD(${i})">Add</button></td>
     </tr>`
   })
-  table+="</table>"
-  panel.innerHTML=table
+  table += "</table>"
+
+  table += `<h3>Create Redeem Key</h3>
+    <input id="keyName" placeholder="Key code">
+    <input id="keyValue" type="number" placeholder="COIN'S amount">
+    <button onclick="createKey()">Create Key</button>
+    <h4>Active Keys</h4>
+    <ul id="keyList"></ul>`
+
+  panel.innerHTML = table
+  renderKeys()
 }
 
 function giveWD(i){
   let amt=parseInt(document.getElementById("wd"+i).value)
   if(isNaN(amt)||amt<=0){alert("Enter valid amount");return}
-  users[i].balance+=amt
+  users[i].balance += amt
   localStorage.setItem("users",JSON.stringify(users))
-  document.getElementById("bal"+i).innerText=users[i].balance
-  if(users[i].user===currentUser) balance=users[i].balance
+  document.getElementById("bal"+i).innerText = users[i].balance
+  if(users[i].user===currentUser) balance = users[i].balance
   updateBalanceUI()
   alert("COIN'S added")
+}
+
+// --- KEYS ---
+function createKey(){
+  let code = document.getElementById("keyName").value.trim()
+  let value = parseInt(document.getElementById("keyValue").value)
+  if(!code || isNaN(value) || value<=0){alert("Enter valid key and amount");return}
+  keys.push({code,value})
+  localStorage.setItem("keys",JSON.stringify(keys))
+  document.getElementById("keyName").value=""
+  document.getElementById("keyValue").value=""
+  renderKeys()
+  alert("Key created: "+code+" for "+value+" COIN'S")
+}
+
+function renderKeys(){
+  let list=document.getElementById("keyList")
+  if(!list) return
+  list.innerHTML=""
+  keys.forEach(k=>{
+    list.innerHTML += "<li>"+k.code+" → "+k.value+" COIN'S</li>"
+  })
 }
 
 // --- SEARCH ---
 function searchListings(){
   let q=document.getElementById("search").value.toLowerCase()
   document.querySelectorAll(".card").forEach(card=>{
-    card.style.display=card.innerText.toLowerCase().includes(q) ? "block" : "none"
+    card.style.display = card.innerText.toLowerCase().includes(q) ? "block" : "none"
   })
 }
 </script>
